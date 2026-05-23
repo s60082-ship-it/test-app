@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Study Sprint">
+  <rect width="192" height="192" rx="42" fill="#2563eb"/>
+  <path d="M48 51c0-9 7-16 16-16h72c9 0 16 7 16 16v96c0 6-5 10-11 8l-37-12c-5-2-11-2-16 0l-37 12c-6 2-11-2-11-8V51z" fill="#fff"/>
+  <path d="M67 68h58M67 91h58M67 114h35" stroke="#2563eb" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="132" cy="118" r="19" fill="#38bdf8"/>
+  <path d="M124 118l6 6 13-15" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

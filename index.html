@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="テスト対策" />
+    <title>テスト対策アプリ</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icon.svg" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Loading screen - removed by JS after initApp() completes -->
+    <div id="app-loading" class="app-loading" aria-hidden="true">
+      <div class="app-loading-inner">
+        <div class="loading-spinner"></div>
+        <p class="loading-label">テスト対策アプリ</p>
+      </div>
+    </div>
+
+    <!-- Offline banner - shown by JS when navigator.onLine is false -->
+    <div id="offline-banner" class="offline-banner" aria-live="assertive" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01" />
+      </svg>
+      オフライン中 - 保存済みデータのみ利用できます
+    </div>
+
+    <div class="background-glow" aria-hidden="true"></div>
+
+    <div class="app">
+      <header class="app-header">
+        <div>
+          <p class="label">高校生向けテスト対策</p>
+          <h1>テスト対策アプリ</h1>
+        </div>
+        <div class="header-actions">
+          <button id="theme-toggle" class="icon-button" type="button" aria-label="ダークモード切替">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v2m0 14v2M5.64 5.64l1.42 1.42m9.88 9.88 1.42 1.42M3 12h2m14 0h2M5.64 18.36l1.42-1.42m9.88-9.88 1.42-1.42" />
+              <circle cx="12" cy="12" r="4" />
+            </svg>
+          </button>
+          <div class="progress-ring" aria-label="完了率">
+            <span id="header-progress">0%</span>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <!-- Home screen -->
+        <section id="home-screen" class="screen active" aria-labelledby="home-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Dashboard</p>
+              <h2 id="home-title">ホーム</h2>
+            </div>
+          </div>
+
+          <div class="hero-card glass-card">
+            <div>
+              <p class="label">今日の一問</p>
+              <h3 id="home-question">問題がまだ登録されていません。「一覧」から追加してください。</h3>
+            </div>
+            <button class="primary-button compact" data-nav="quiz-screen" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+              始める
+            </button>
+          </div>
+
+          <div class="stats">
+            <article class="stat-card glass-card">
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M9 11l3 3L22 4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+              </div>
+              <span id="total-count">0</span>
+              <small>回答数</small>
+            </article>
+            <article class="stat-card glass-card">
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 3v18h18" />
+                  <path d="M7 15l4-4 3 3 6-7" />
+                </svg>
+              </div>
+              <span id="correct-rate">0%</span>
+              <small>正答率</small>
+            </article>
+            <article class="stat-card glass-card">
+              <div class="stat-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5Z" />
+                  <path d="M8 7h6M8 11h6" />
+                </svg>
+              </div>
+              <span id="done-count">0</span>
+              <small>完了問題</small>
+            </article>
+          </div>
+
+          <article class="test-summary-card glass-card">
+            <div class="panel-heading">
+              <h3>次のテスト</h3>
+              <button class="inline-button" data-nav="test-screen" type="button">管理</button>
+            </div>
+            <div id="home-test-list" class="home-test-list"></div>
+          </article>
+
+          <!-- Data management card - export, import, sync -->
+          <article class="data-card glass-card">
+            <div class="panel-heading">
+              <h3>データ管理</h3>
+              <small>バックアップ・同期</small>
+            </div>
+            <div class="data-actions">
+              <button id="export-btn" class="primary-button compact" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7,10 12,15 17,10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                エクスポート
+              </button>
+              <button id="import-btn" class="primary-button compact secondary" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17,8 12,3 7,8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                インポート
+              </button>
+              <input id="import-file" type="file" accept=".json" hidden />
+            </div>
+            <div id="import-dropzone" class="import-dropzone" role="button" tabindex="0" aria-label="JSONファイルをドロップしてインポート">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14,2 14,8 20,8" />
+              </svg>
+              JSONファイルをここにドロップしてインポート
+            </div>
+          </article>
+        </section>
+
+        <!-- Question list screen -->
+        <section id="list-screen" class="screen" aria-labelledby="list-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Questions</p>
+              <h2 id="list-title">問題一覧</h2>
+            </div>
+            <button id="add-question-btn" class="primary-button compact" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              追加
+            </button>
+          </div>
+          <div id="question-list" class="question-list"></div>
+        </section>
+
+        <!-- Quiz screen -->
+        <section id="quiz-screen" class="screen" aria-labelledby="quiz-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Quiz</p>
+              <h2 id="quiz-title">一問一答</h2>
+            </div>
+          </div>
+          <article class="quiz-card glass-card">
+            <p id="quiz-subject" class="subject-chip"></p>
+            <h3 id="quiz-question"></h3>
+            <div id="answer-buttons" class="answer-buttons"></div>
+            <p id="result-message" class="result" aria-live="polite"></p>
+
+            <div id="explanation-panel" class="explanation-panel">
+              <div class="expl-header">
+                <div class="expl-icon-wrap" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4M12 8h.01" />
+                  </svg>
+                </div>
+                <p id="expl-text" class="expl-text"></p>
+              </div>
+              <button id="expl-toggle" class="expl-toggle" type="button" aria-expanded="false" aria-controls="expl-body">
+                <span>詳しく見る</span>
+                <svg class="expl-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              <div id="expl-body" class="expl-body" aria-hidden="true">
+                <div class="expl-section">
+                  <h4 class="expl-section-title">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                    </svg>
+                    重要ポイント
+                  </h4>
+                  <ul id="expl-points" class="expl-points"></ul>
+                </div>
+                <div class="expl-section">
+                  <h4 class="expl-section-title">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 5h16M4 12h10M4 19h16" />
+                      <path d="M18 9v6M15 12h6" />
+                    </svg>
+                    関連用語
+                  </h4>
+                  <div id="expl-terms" class="expl-terms"></div>
+                </div>
+                <div class="expl-section expl-section-last">
+                  <h4 class="expl-section-title">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                    </svg>
+                    復習推奨
+                  </h4>
+                  <div id="expl-review" class="expl-review"></div>
+                </div>
+              </div>
+            </div>
+
+            <button id="next-button" class="primary-button" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+              次の問題
+            </button>
+          </article>
+        </section>
+
+        <!-- Study time screen -->
+        <section id="time-screen" class="screen" aria-labelledby="time-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Study Time</p>
+              <h2 id="time-title">学習時間</h2>
+            </div>
+          </div>
+
+          <article class="session-card glass-card">
+            <div>
+              <p class="label">現在のセッション</p>
+              <h3 id="active-duration">00:00</h3>
+            </div>
+            <label class="subject-select">
+              <span>科目</span>
+              <select id="study-subject"></select>
+            </label>
+            <button id="session-toggle" class="primary-button" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7-11-7Z" />
+              </svg>
+              学習開始
+            </button>
+          </article>
+
+          <div class="time-metrics">
+            <article class="metric-card glass-card">
+              <span id="today-study-time">0分</span>
+              <small>今日</small>
+            </article>
+            <article class="metric-card glass-card">
+              <span id="week-study-time">0分</span>
+              <small>今週</small>
+            </article>
+            <article class="metric-card glass-card">
+              <span id="streak-days">0日</span>
+              <small>連続学習</small>
+            </article>
+          </div>
+
+          <article class="time-card glass-card">
+            <div class="panel-heading">
+              <h3>科目別学習時間</h3>
+              <small>比較</small>
+            </div>
+            <div id="subject-time-list" class="subject-time-list"></div>
+          </article>
+
+          <article class="time-card glass-card">
+            <div class="panel-heading">
+              <h3>7日間の学習</h3>
+              <small>棒グラフ</small>
+            </div>
+            <div id="study-chart" class="study-chart" aria-label="7日間の学習時間グラフ"></div>
+          </article>
+
+          <!-- Session history list - supports edit and delete -->
+          <article class="time-card glass-card">
+            <div class="panel-heading">
+              <h3>学習記録</h3>
+              <small>最新20件</small>
+            </div>
+            <div id="session-list" class="session-list"></div>
+          </article>
+        </section>
+
+        <!-- Test management screen -->
+        <section id="test-screen" class="screen" aria-labelledby="test-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Test Calendar</p>
+              <h2 id="test-title">テスト管理</h2>
+            </div>
+          </div>
+
+          <article class="test-form-card glass-card">
+            <form id="test-form" class="test-form">
+              <label>
+                <span>テスト名</span>
+                <input id="test-name" type="text" placeholder="例: 2学期末テスト" required />
+              </label>
+              <label>
+                <span>テスト日</span>
+                <input id="test-date" type="date" required />
+              </label>
+              <label>
+                <span>科目</span>
+                <select id="test-subject"></select>
+              </label>
+              <button class="primary-button" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                テストを登録
+              </button>
+            </form>
+          </article>
+
+          <div id="test-list" class="test-list"></div>
+        </section>
+
+        <!-- Mistake notes screen -->
+        <section id="note-screen" class="screen" aria-labelledby="note-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Mistake Notes</p>
+              <h2 id="note-title">間違いノート</h2>
+            </div>
+          </div>
+
+          <article class="note-form-card glass-card">
+            <form id="note-form" class="note-form">
+              <label>
+                <span>問題</span>
+                <textarea id="note-question" rows="3" placeholder="間違えた問題や内容を書く" required></textarea>
+              </label>
+              <label>
+                <span>正解</span>
+                <input id="note-answer" type="text" placeholder="正しい答え" required />
+              </label>
+              <label>
+                <span>自分のメモ</span>
+                <textarea id="note-memo" rows="3" placeholder="なぜ間違えたか、次に見るポイント"></textarea>
+              </label>
+              <label>
+                <span>分類タグ</span>
+                <input id="note-tags" type="text" placeholder="例: 文法, 計算ミス" />
+              </label>
+              <label>
+                <span>問題画像</span>
+                <input id="note-image" type="file" accept="image/*" />
+              </label>
+              <button class="primary-button" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                ノートに保存
+              </button>
+            </form>
+          </article>
+
+          <div class="note-toolbar">
+            <button class="inline-button active" data-note-filter="all" type="button">すべて</button>
+            <button class="inline-button" data-note-filter="open" type="button">未復習</button>
+            <button class="inline-button" data-note-filter="reviewed" type="button">復習済み</button>
+          </div>
+
+          <div id="mistake-note-list" class="mistake-note-list"></div>
+        </section>
+
+        <!-- Score analysis screen -->
+        <section id="score-screen" class="screen" aria-labelledby="score-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Score Analytics</p>
+              <h2 id="score-title">点数分析</h2>
+            </div>
+          </div>
+
+          <div class="score-metrics">
+            <article class="metric-card glass-card">
+              <span id="average-score">0点</span>
+              <small>平均点</small>
+            </article>
+            <article class="metric-card glass-card">
+              <span id="best-score">0点</span>
+              <small>最高点</small>
+            </article>
+            <article class="metric-card glass-card">
+              <span id="score-count">0</span>
+              <small>記録数</small>
+            </article>
+          </div>
+
+          <article class="score-form-card glass-card">
+            <form id="score-form" class="score-form">
+              <label>
+                <span>テスト</span>
+                <select id="score-test"></select>
+              </label>
+              <label>
+                <span>科目</span>
+                <select id="score-subject"></select>
+              </label>
+              <label>
+                <span>点数</span>
+                <input id="score-value" type="number" min="0" max="100" placeholder="例: 82" required />
+              </label>
+              <label>
+                <span>メモ</span>
+                <textarea id="score-memo" rows="3" placeholder="できたこと、次の目標"></textarea>
+              </label>
+              <button class="primary-button" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                点数を保存
+              </button>
+            </form>
+          </article>
+
+          <article class="score-chart-card glass-card">
+            <div class="panel-heading">
+              <h3>点数推移</h3>
+              <small>最新10件</small>
+            </div>
+            <div id="score-chart" class="score-chart" aria-label="点数推移グラフ"></div>
+          </article>
+
+          <article class="score-chart-card glass-card">
+            <div class="panel-heading">
+              <h3>科目別平均</h3>
+              <small>分析</small>
+            </div>
+            <div id="subject-score-list" class="subject-score-list"></div>
+          </article>
+
+          <div id="score-list" class="score-list"></div>
+        </section>
+
+        <!-- Vocabulary screen -->
+        <section id="term-screen" class="screen" aria-labelledby="term-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Vocabulary</p>
+              <h2 id="term-title">用語まとめ</h2>
+            </div>
+          </div>
+
+          <article class="term-form-card glass-card">
+            <form id="term-form" class="term-form">
+              <label>
+                <span>用語</span>
+                <input id="term-name" type="text" placeholder="例: 光合成の反応" required />
+              </label>
+              <label>
+                <span>意味・解説</span>
+                <textarea id="term-meaning" rows="3" placeholder="定義、内容、覚え方" required></textarea>
+              </label>
+              <label>
+                <span>カテゴリ</span>
+                <input id="term-category" type="text" placeholder="例: 日本史" required />
+              </label>
+              <button class="primary-button" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                用語を登録
+              </button>
+            </form>
+          </article>
+
+          <article class="term-tools glass-card">
+            <label>
+              <span>検索</span>
+              <input id="term-search" type="search" placeholder="用語・解説・カテゴリで検索" />
+            </label>
+            <label>
+              <span>カテゴリ</span>
+              <select id="term-category-filter">
+                <option value="all">すべて</option>
+              </select>
+            </label>
+            <div class="term-switches">
+              <button id="red-sheet-toggle" class="inline-button" type="button">赤シート</button>
+              <button id="favorite-filter-toggle" class="inline-button" type="button">お気に入り</button>
+            </div>
+          </article>
+
+          <article class="memory-card glass-card">
+            <div class="panel-heading">
+              <h3>暗記カード</h3>
+              <button id="next-term-card" class="inline-button" type="button">次へ</button>
+            </div>
+            <button id="term-flashcard" class="term-flashcard" type="button">
+              <span id="flashcard-category"></span>
+              <strong id="flashcard-term"></strong>
+              <em id="flashcard-meaning"></em>
+            </button>
+          </article>
+
+          <div id="term-list" class="term-list"></div>
+        </section>
+
+        <!-- Subject management screen -->
+        <section id="subjects-screen" class="screen" aria-labelledby="subjects-title">
+          <div class="screen-title">
+            <div>
+              <p class="label">Subjects</p>
+              <h2 id="subjects-title">科目管理</h2>
+            </div>
+            <button id="add-subject-btn" class="primary-button compact" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              追加
+            </button>
+          </div>
+          <div id="subject-list" class="subject-list"></div>
+        </section>
+      </main>
+
+      <!-- ============================================================
+           Modals
+      ============================================================ -->
+
+      <!-- Subject add/edit modal -->
+      <div id="subject-modal" class="modal" aria-hidden="true" aria-labelledby="subject-modal-title" role="dialog" hidden>
+        <div class="modal-overlay" id="modal-overlay"></div>
+        <div class="modal-sheet">
+          <div class="modal-handle" aria-hidden="true"></div>
+          <div class="modal-header">
+            <h3 id="subject-modal-title">科目を追加</h3>
+            <button id="modal-close" class="icon-btn-sm" type="button" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form id="subject-form">
+            <div class="modal-field">
+              <label class="modal-label">アイコン</label>
+              <div id="icon-picker" class="icon-picker"></div>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="subject-name-input">科目名</label>
+              <input id="subject-name-input" class="modal-input" type="text"
+                     placeholder="例: 物理" required maxlength="20" autocomplete="off" />
+            </div>
+            <div class="modal-field">
+              <label class="modal-label">カラー</label>
+              <div id="color-picker" class="color-picker"></div>
+            </div>
+            <button class="primary-button" type="submit">保存</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Question add/edit modal -->
+      <div id="question-modal" class="modal" aria-hidden="true" aria-labelledby="question-modal-title" role="dialog" hidden>
+        <div class="modal-overlay" id="question-modal-overlay"></div>
+        <div class="modal-sheet">
+          <div class="modal-handle" aria-hidden="true"></div>
+          <div class="modal-header">
+            <h3 id="question-modal-title">問題を追加</h3>
+            <button id="question-modal-close" class="icon-btn-sm" type="button" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form id="question-form">
+            <div class="modal-field">
+              <label class="modal-label" for="q-subject">科目</label>
+              <select id="q-subject" class="modal-input"></select>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="q-question">問題文</label>
+              <textarea id="q-question" class="modal-input" rows="3" placeholder="問題を入力してください" required></textarea>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label">選択肢（4つ）</label>
+              <div class="choices-stack">
+                <input id="q-choice-0" class="modal-input" type="text" placeholder="選択肢 1" required />
+                <input id="q-choice-1" class="modal-input" type="text" placeholder="選択肢 2" required />
+                <input id="q-choice-2" class="modal-input" type="text" placeholder="選択肢 3" required />
+                <input id="q-choice-3" class="modal-input" type="text" placeholder="選択肢 4" required />
+              </div>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="q-answer">正解（番号）</label>
+              <select id="q-answer" class="modal-input">
+                <option value="0">選択肢 1</option>
+                <option value="1">選択肢 2</option>
+                <option value="2">選択肢 3</option>
+                <option value="3">選択肢 4</option>
+              </select>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="q-explanation">解説</label>
+              <textarea id="q-explanation" class="modal-input" rows="3" placeholder="なぜその答えになるか"></textarea>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="q-review-level">復習レベル</label>
+              <select id="q-review-level" class="modal-input">
+                <option value="1">1 - 基礎定着</option>
+                <option value="2" selected>2 - 要復習</option>
+                <option value="3">3 - 重点復習</option>
+              </select>
+            </div>
+            <div class="modal-footer-actions">
+              <button id="question-delete-btn" class="danger-button" type="button" style="display:none">削除</button>
+              <button class="primary-button" type="submit">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Term edit modal -->
+      <div id="term-modal" class="modal" aria-hidden="true" aria-labelledby="term-modal-title" role="dialog" hidden>
+        <div class="modal-overlay" id="term-modal-overlay"></div>
+        <div class="modal-sheet">
+          <div class="modal-handle" aria-hidden="true"></div>
+          <div class="modal-header">
+            <h3 id="term-modal-title">用語を編集</h3>
+            <button id="term-modal-close" class="icon-btn-sm" type="button" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form id="term-edit-form">
+            <div class="modal-field">
+              <label class="modal-label" for="te-name">用語</label>
+              <input id="te-name" class="modal-input" type="text" required />
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="te-meaning">意味・解説</label>
+              <textarea id="te-meaning" class="modal-input" rows="3" required></textarea>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="te-category">カテゴリ</label>
+              <input id="te-category" class="modal-input" type="text" required />
+            </div>
+            <div class="modal-footer-actions">
+              <button id="term-delete-btn" class="danger-button" type="button">削除</button>
+              <button class="primary-button" type="submit">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Test edit modal -->
+      <div id="test-modal" class="modal" aria-hidden="true" aria-labelledby="test-modal-title" role="dialog" hidden>
+        <div class="modal-overlay" id="test-modal-overlay"></div>
+        <div class="modal-sheet">
+          <div class="modal-handle" aria-hidden="true"></div>
+          <div class="modal-header">
+            <h3 id="test-modal-title">テストを編集</h3>
+            <button id="test-modal-close" class="icon-btn-sm" type="button" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form id="test-edit-form">
+            <div class="modal-field">
+              <label class="modal-label" for="te-test-name">テスト名</label>
+              <input id="te-test-name" class="modal-input" type="text" required />
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="te-test-date">テスト日</label>
+              <input id="te-test-date" class="modal-input" type="date" required />
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="te-test-subject">科目</label>
+              <select id="te-test-subject" class="modal-input"></select>
+            </div>
+            <div class="modal-footer-actions">
+              <button id="test-delete-btn" class="danger-button" type="button">削除</button>
+              <button class="primary-button" type="submit">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Score edit modal -->
+      <div id="score-modal" class="modal" aria-hidden="true" aria-labelledby="score-modal-title" role="dialog" hidden>
+        <div class="modal-overlay" id="score-modal-overlay"></div>
+        <div class="modal-sheet">
+          <div class="modal-handle" aria-hidden="true"></div>
+          <div class="modal-header">
+            <h3 id="score-modal-title">点数を編集</h3>
+            <button id="score-modal-close" class="icon-btn-sm" type="button" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form id="score-edit-form">
+            <div class="modal-field">
+              <label class="modal-label" for="se-score">点数（0-100）</label>
+              <input id="se-score" class="modal-input" type="number" min="0" max="100" required />
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="se-memo">メモ</label>
+              <textarea id="se-memo" class="modal-input" rows="3" placeholder="できたこと、次の目標"></textarea>
+            </div>
+            <div class="modal-footer-actions">
+              <button id="score-delete-btn" class="danger-button" type="button">削除</button>
+              <button class="primary-button" type="submit">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Mistake note edit modal -->
+      <div id="note-modal" class="modal" aria-hidden="true" aria-labelledby="note-modal-title" role="dialog" hidden>
+        <div class="modal-overlay" id="note-modal-overlay"></div>
+        <div class="modal-sheet">
+          <div class="modal-handle" aria-hidden="true"></div>
+          <div class="modal-header">
+            <h3 id="note-modal-title">ノートを編集</h3>
+            <button id="note-modal-close" class="icon-btn-sm" type="button" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form id="note-edit-form">
+            <div class="modal-field">
+              <label class="modal-label" for="ne-question">問題</label>
+              <textarea id="ne-question" class="modal-input" rows="3" required></textarea>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="ne-answer">正解</label>
+              <input id="ne-answer" class="modal-input" type="text" required />
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="ne-memo">メモ</label>
+              <textarea id="ne-memo" class="modal-input" rows="3"></textarea>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="ne-tags">タグ（カンマ区切り）</label>
+              <input id="ne-tags" class="modal-input" type="text" placeholder="例: 文法, 計算ミス" />
+            </div>
+            <div class="modal-footer-actions">
+              <button id="note-delete-btn" class="danger-button" type="button">削除</button>
+              <button class="primary-button" type="submit">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Study session edit modal -->
+      <div id="session-modal" class="modal" aria-hidden="true" aria-labelledby="session-modal-title" role="dialog" hidden>
+        <div class="modal-overlay" id="session-modal-overlay"></div>
+        <div class="modal-sheet">
+          <div class="modal-handle" aria-hidden="true"></div>
+          <div class="modal-header">
+            <h3 id="session-modal-title">学習記録を編集</h3>
+            <button id="session-modal-close" class="icon-btn-sm" type="button" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form id="session-edit-form">
+            <div class="modal-field">
+              <label class="modal-label" for="sess-subject">科目</label>
+              <select id="sess-subject" class="modal-input"></select>
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="sess-date">日付</label>
+              <input id="sess-date" class="modal-input" type="date" required />
+            </div>
+            <div class="modal-field">
+              <label class="modal-label" for="sess-duration">学習時間（分）</label>
+              <input id="sess-duration" class="modal-input" type="number" min="1" placeholder="例: 60" required />
+            </div>
+            <div class="modal-footer-actions">
+              <button id="session-delete-btn" class="danger-button" type="button">削除</button>
+              <button class="primary-button" type="submit">保存</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Tab bar navigation -->
+      <nav class="tabbar" aria-label="画面切り替え">
+        <button class="tab active" data-nav="home-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3V10.5Z" />
+          </svg>
+          <span>ホーム</span>
+        </button>
+        <button class="tab" data-nav="list-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 6h13M8 12h13M8 18h13" />
+            <path d="M3 6h.01M3 12h.01M3 18h.01" />
+          </svg>
+          <span>一覧</span>
+        </button>
+        <button class="tab" data-nav="quiz-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+          <span>演習</span>
+        </button>
+        <button class="tab" data-nav="time-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+          <span>時間</span>
+        </button>
+        <button class="tab" data-nav="test-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 2v4M16 2v4M3 9h18" />
+            <rect x="3" y="4" width="18" height="18" rx="3" />
+          </svg>
+          <span>テスト</span>
+        </button>
+        <button class="tab" data-nav="note-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5Z" />
+            <path d="M8 8h7M8 12h5M8 16h6" />
+          </svg>
+          <span>ノート</span>
+        </button>
+        <button class="tab" data-nav="score-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 3v18h18" />
+            <path d="M7 15l4-4 3 3 6-7" />
+          </svg>
+          <span>分析</span>
+        </button>
+        <button class="tab" data-nav="term-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 5h16M4 12h10M4 19h16" />
+            <path d="M18 9v6M15 12h6" />
+          </svg>
+          <span>用語</span>
+        </button>
+        <button class="tab" data-nav="subjects-screen" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+          <span>科目</span>
+        </button>
+      </nav>
+    </div>
+
+    <script src="script.js" defer></script>
+  </body>
+</html>
