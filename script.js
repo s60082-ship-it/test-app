@@ -30,8 +30,8 @@ const PRESET_COLORS = [
   "#0891b2", "#db2777", "#ea580c", "#059669", "#4338ca",
 ];
 
-// Mistake note category options (used for filter and dropdown)
-const NOTE_CATEGORIES = ["数学", "英語", "物理", "化学", "情報", "その他"];
+// Note: Mistake note categories are now derived dynamically from the
+// "テスト予定" (tests) data. See testSubjectsForNoteCategory() below.
 
 // ----------------------------------------------
 // Utility functions
@@ -699,6 +699,9 @@ function addTest(event) {
   save(KEYS.tests, tests);
   event.currentTarget.reset();
   renderTests();
+  // Note categories follow test subjects - refresh dropdowns now
+  populateNoteCategoryOptions();
+  renderMistakeNotes();
 }
 
 // ----------------------------------------------
@@ -1452,6 +1455,8 @@ function submitTestEdit(event) {
   save(KEYS.tests, tests);
   closeModal("#test-modal");
   renderTests();
+  populateNoteCategoryOptions();
+  renderMistakeNotes();
 }
 
 // Delete a test
@@ -1462,6 +1467,8 @@ function deleteTest(id) {
   save(KEYS.tests, tests);
   closeModal("#test-modal");
   renderTests();
+  populateNoteCategoryOptions();
+  renderMistakeNotes();
 }
 
 // ----------------------------------------------
@@ -1506,6 +1513,9 @@ function deleteScore(id) {
 // Open the note edit modal
 function openNoteModal(note) {
   editingNoteId             = note.id;
+  // Refresh category options first, preserving this note's value even if
+  // the originating test has since been deleted.
+  populateNoteCategoryOptions(note.category ?? "");
   $("#ne-question").value    = note.question;
   $("#ne-answer").value      = note.correctAnswer;
   $("#ne-memo").value        = note.memo ?? "";
@@ -1653,6 +1663,7 @@ function importData(file) {
       // Reset index and re-render all screens
       currentIndex = 0;
       populateSubjectSelects();
+      populateNoteCategoryOptions();
       renderProgress();
       renderHome();
       renderQuestionList();
@@ -2009,6 +2020,64 @@ function bindEvents() {
 // Initialization
 // ----------------------------------------------
 
+// Return sorted unique subject names that appear in the "テスト予定" data.
+// Empty/blank entries are skipped. Used as the source of note categories.
+function testSubjectsForNoteCategory() {
+  const names = tests.map((t) => (t.subject || "").trim()).filter(Boolean);
+  return [...new Set(names)].sort();
+}
+
+// Populate the three note category <select> elements from the tests data.
+// - #note-category   (add form):       blank value = "未設定" + each test subject
+// - #ne-category     (edit modal):     same as add form (preserves existing value)
+// - #note-category-filter (filter):    "すべて" (all) + each subject + "未分類" (empty)
+//
+// When opening the edit modal for a note whose category was a test subject
+// that has since been removed, callers can pass `preserveExtra` so that the
+// value still appears in the dropdown.
+function populateNoteCategoryOptions(preserveExtra = "") {
+  const subjects = testSubjectsForNoteCategory();
+  const extras = preserveExtra && !subjects.includes(preserveExtra)
+    ? [preserveExtra]
+    : [];
+  const allSubjects = [...subjects, ...extras];
+
+  const subjectOptionsHtml = allSubjects
+    .map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
+    .join("");
+
+  // Add / edit dropdowns: leading "未設定" (empty value) then test subjects.
+  // If no tests are registered yet, only "未設定" appears.
+  const inputOptions = `<option value="">未設定</option>` + subjectOptionsHtml;
+
+  // Filter dropdown: leading "すべて", then subjects, trailing "未分類".
+  const filterOptions =
+    `<option value="all">すべて</option>` +
+    subjectOptionsHtml +
+    `<option value="">未分類</option>`;
+
+  ["note-category", "ne-category"].forEach((id) => {
+    const el = $(`#${id}`);
+    if (!el) return;
+    const prev = el.value;
+    el.innerHTML = inputOptions;
+    if ([...el.options].some((o) => o.value === prev)) el.value = prev;
+  });
+
+  const filterEl = $("#note-category-filter");
+  if (filterEl) {
+    const prev = filterEl.value || "all";
+    filterEl.innerHTML = filterOptions;
+    if ([...filterEl.options].some((o) => o.value === prev)) {
+      filterEl.value = prev;
+    } else {
+      // The previously selected category no longer exists - reset to "all"
+      filterEl.value     = "all";
+      noteCategoryFilter = "all";
+    }
+  }
+}
+
 // Dynamically populate all subject <select> elements from the subjects array
 function populateSubjectSelects() {
   const html = sortedSubjects()
@@ -2051,6 +2120,7 @@ function initApp() {
   });
 
   populateSubjectSelects();
+  populateNoteCategoryOptions();
   bindEvents();
   initImportDropzone();
 
