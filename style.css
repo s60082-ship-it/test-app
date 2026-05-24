@@ -464,12 +464,12 @@ h4 {
 }
 
 .stat-card {
-  min-height: 134px;
+  min-height: 110px;
   padding: 18px 10px;
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 8px;
+  gap: 6px;
   text-align: center;
   transition: transform 180ms var(--ease);
 }
@@ -478,26 +478,12 @@ h4 {
   transform: scale(0.97);
 }
 
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  background: var(--primary-soft);
-  color: var(--primary-dark);
-}
-
-.stat-icon svg {
-  width: 19px;
-  height: 19px;
-}
-
 .stat-card span {
-  font-size: 1.75rem;
+  font-size: 1.85rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  color: var(--primary-dark);
 }
 
 .stat-card small,
@@ -1348,16 +1334,80 @@ h4 {
 /* ----------------------------------------------
    Mistake notes
 ---------------------------------------------- */
+.note-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 14px 0;
+}
+
 .note-toolbar {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 14px 0;
   scrollbar-width: none;
+  flex: 1 1 auto;
 }
 
 .note-toolbar::-webkit-scrollbar {
   display: none;
+}
+
+.note-category-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.note-category-filter > span {
+  white-space: nowrap;
+}
+
+.note-category-filter select {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.note-category-filter select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+
+/* Category chip displayed on each note card (mirrors .tag visual language) */
+.note-card-title {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.note-category-chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  width: fit-content;
 }
 
 .mistake-note-list {
@@ -1633,24 +1683,19 @@ h4 {
 .subject-card-identity {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
   flex: 1;
 }
 
-.subject-icon-badge {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--subj-color, var(--primary)) 18%, transparent);
-  display: grid;
-  place-items: center;
-  font-size: 1.15rem;
-  font-weight: 900;
-  line-height: 1;
+/* Simple color dot replaces the old generic subject icon badge */
+.subject-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
   flex-shrink: 0;
-  color: var(--subj-color, var(--primary));
-  letter-spacing: -0.01em;
+  background: var(--subj-color, var(--primary));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--subj-color, var(--primary)) 18%, transparent);
 }
 
 .subject-card-name {
@@ -2049,11 +2094,7 @@ textarea.modal-input {
   animation: slide-in 320ms var(--ease) both;
 }
 
-.offline-banner svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-}
+/* Offline banner no longer uses an icon - text only for a cleaner look */
 
 /* ----------------------------------------------
    Animations

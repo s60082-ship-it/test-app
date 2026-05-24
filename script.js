@@ -30,12 +30,8 @@ const PRESET_COLORS = [
   "#0891b2", "#db2777", "#ea580c", "#059669", "#4338ca",
 ];
 
-// Preset subject icons - single kanji abbreviations (15 options)
-const PRESET_ICONS = [
-  "国", "数", "英", "理", "社",
-  "物", "化", "生", "史", "地",
-  "音", "体", "美", "情", "家",
-];
+// Mistake note category options (used for filter and dropdown)
+const NOTE_CATEGORIES = ["数学", "英語", "物理", "化学", "情報", "その他"];
 
 // ----------------------------------------------
 // Utility functions
@@ -61,13 +57,49 @@ function safeColor(color) {
 }
 
 // Save data to localStorage as JSON
-// Logs a warning on failure (e.g. private browsing) without stopping execution
+// Returns true on success, false on failure (e.g. quota exceeded, private browsing)
 function save(key, data) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
+    return true;
   } catch (err) {
     console.warn("Save failed:", key, err);
+    return false;
   }
+}
+
+// Compress an image File to a JPEG data URL, resizing to fit within maxWidth.
+// Returns "" if no file or on error. Used to keep localStorage payload small.
+function compressImageFile(file, maxWidth = 1280, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file || !file.type?.startsWith("image/")) { resolve(""); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale  = Math.min(1, maxWidth / img.width);
+        const w      = Math.max(1, Math.round(img.width  * scale));
+        const h      = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width  = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { resolve(""); return; }
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        } catch {
+          resolve("");
+        }
+      };
+      img.onerror = () => resolve("");
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
 }
 
 // Load a JSON object from localStorage, merging with fallback defaults
@@ -176,7 +208,6 @@ let timerId       = null;    // Study timer interval ID
 // Subject modal state
 let editingSubjectId = null;
 let pickedColor      = PRESET_COLORS[0];
-let pickedIcon       = PRESET_ICONS[0];
 
 // Edit modal target IDs
 let editingQuestionId = null;
@@ -186,7 +217,8 @@ let editingScoreId    = null;
 let editingNoteId     = null;
 let editingSessionKey = null; // session.id or session.startAt as fallback
 
-let noteFilter    = "all";   // Mistake note filter state
+let noteFilter         = "all"; // Mistake note status filter (all/open/reviewed)
+let noteCategoryFilter = "all"; // Mistake note category filter (all/category name/"" for 未分類)
 let termSearch    = "";      // Vocabulary search keyword
 let termCatFilter = "all";   // Vocabulary category filter
 let redSheetMode  = false;   // Red sheet mode toggle
@@ -777,16 +809,20 @@ function addScore(event) {
 
 // Generate HTML for a mistake note card with edit/delete buttons
 function noteCardHtml(note) {
-  const tags = note.tags?.length
+  const category = note.category || "未分類";
+  const tagsHtml = note.tags?.length
     ? note.tags.map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join("")
-    : `<span class="tag">未分類</span>`;
+    : "";
   return `
     <article class="note-card glass-card ${note.reviewed ? "reviewed" : ""}">
       ${note.imageData ? `<img class="note-image" src="${note.imageData}" alt="問題画像" />` : ""}
       <div class="note-card-head">
-        <strong>${escapeHtml(note.question)}</strong>
+        <div class="note-card-title">
+          <span class="note-category-chip">${escapeHtml(category)}</span>
+          <strong>${escapeHtml(note.question)}</strong>
+        </div>
         <div class="note-card-actions">
-          <button class="review-toggle" data-note-review="${escapeHtml(note.id)}" type="button">
+          <button class="review-toggle ${note.reviewed ? "active" : ""}" data-note-review="${escapeHtml(note.id)}" type="button">
             ${note.reviewed ? "復習済み" : "復習する"}
           </button>
           <button class="icon-btn-sm" data-note-edit="${escapeHtml(note.id)}" type="button" aria-label="編集">
@@ -799,21 +835,22 @@ function noteCardHtml(note) {
       <p class="note-answer"><b>正解:</b> ${escapeHtml(note.correctAnswer)}</p>
       ${note.userAnswer ? `<p class="note-answer"><b>自分の答え:</b> ${escapeHtml(note.userAnswer)}</p>` : ""}
       ${note.memo       ? `<p class="note-memo"><b>メモ:</b> ${escapeHtml(note.memo)}</p>` : ""}
-      <div class="tag-list">${tags}</div>
+      ${tagsHtml ? `<div class="tag-list">${tagsHtml}</div>` : ""}
     </article>`;
 }
 
-// Render mistake notes filtered by the current filter state
+// Render mistake notes filtered by status and category filters
 function renderMistakeNotes() {
   const filtered = mistakes.filter((n) => {
-    if (noteFilter === "reviewed") return  n.reviewed;
-    if (noteFilter === "open")     return !n.reviewed;
+    if (noteFilter === "reviewed" && !n.reviewed) return false;
+    if (noteFilter === "open"     &&  n.reviewed) return false;
+    if (noteCategoryFilter !== "all" && (n.category || "") !== noteCategoryFilter) return false;
     return true;
   });
   $("#mistake-note-list").innerHTML = filtered.length
     ? filtered.map(noteCardHtml).join("")
     : `<article class="note-card glass-card">
-         <p class="empty-text">間違いノートはまだありません。</p>
+         <p class="empty-text">該当する間違いノートはありません。</p>
        </article>`;
 }
 
@@ -830,6 +867,7 @@ function upsertMistake(q, userAnswer) {
       id:            generateId(),
       questionId:    q.id,
       subject:       q.subject,
+      category:      "",
       question:      q.question,
       correctAnswer: q.answer,
       userAnswer,
@@ -850,24 +888,23 @@ function normalizeTags(value) {
   return value.split(",").map((t) => t.trim()).filter(Boolean);
 }
 
-// Convert a File to a Base64 data URL
-function noteImageData(file) {
-  return new Promise((resolve) => {
-    if (!file) { resolve(""); return; }
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(reader.result));
-    reader.readAsDataURL(file);
-  });
-}
-
-// Add a manually entered mistake note from the form
+// Add a manually entered mistake note from the form.
+// - Compresses the selected image to JPEG (max 1280px wide) to stay within localStorage quota.
+// - Saves event.currentTarget before await (it may be nulled after async resume).
+// - Rolls back and notifies the user if save fails (e.g. quota exceeded).
 async function addManualNote(event) {
   event.preventDefault();
-  const imageData = await noteImageData($("#note-image").files[0]);
-  mistakes.unshift({
+  const formEl = event.currentTarget;
+  const fileEl = $("#note-image");
+  const file   = fileEl?.files?.[0];
+
+  const imageData = await compressImageFile(file);
+
+  const newNote = {
     id:            generateId(),
     questionId:    null,
     subject:       "",
+    category:      $("#note-category")?.value ?? "",
     question:      $("#note-question").value.trim(),
     correctAnswer: $("#note-answer").value.trim(),
     userAnswer:    "",
@@ -877,9 +914,19 @@ async function addManualNote(event) {
     reviewed:      false,
     createdAt:     new Date().toISOString(),
     updatedAt:     new Date().toISOString(),
-  });
-  save(KEYS.mistakes, mistakes);
-  event.currentTarget.reset();
+  };
+
+  mistakes.unshift(newNote);
+  const ok = save(KEYS.mistakes, mistakes);
+  if (!ok) {
+    // Rollback on save failure (e.g. quota exceeded by large image)
+    mistakes.shift();
+    alert("保存できませんでした。画像が大きすぎる可能性があります。\n画像なしで保存するか、小さい画像を選んでください。");
+    return;
+  }
+
+  if (formEl) formEl.reset();
+  if (fileEl) fileEl.value = "";
   renderMistakeNotes();
 }
 
@@ -1066,7 +1113,7 @@ function subjectCardHtml(subj, sessions) {
     <article class="subject-card glass-card" style="--subj-color:${color}">
       <div class="subject-card-top">
         <div class="subject-card-identity">
-          <div class="subject-icon-badge">${escapeHtml(subj.icon)}</div>
+          <span class="subject-color-dot" style="background:${color}" aria-hidden="true"></span>
           <strong class="subject-card-name">${escapeHtml(subj.name)}</strong>
         </div>
         <div class="subject-card-actions">
@@ -1125,13 +1172,8 @@ function renderSubjects() {
 // Subject management: Modal
 // ----------------------------------------------
 
-// Render icon and color picker swatches
+// Render color picker swatches (icon picker removed - simpler design for technical schools)
 function renderPickers() {
-  $("#icon-picker").innerHTML = PRESET_ICONS.map((icon) =>
-    `<button type="button" class="icon-swatch ${icon === pickedIcon ? "selected" : ""}"
-             data-icon="${icon}">${icon}</button>`
-  ).join("");
-
   $("#color-picker").innerHTML = PRESET_COLORS.map((color) =>
     `<button type="button" class="color-swatch ${color === pickedColor ? "selected" : ""}"
              data-color="${color}" style="background:${color}" aria-label="${color}"></button>`
@@ -1142,7 +1184,6 @@ function renderPickers() {
 function openSubjectModal(subj = null) {
   editingSubjectId = subj ? subj.id : null;
   pickedColor      = subj ? safeColor(subj.color) : PRESET_COLORS[0];
-  pickedIcon       = subj ? (subj.icon || PRESET_ICONS[0]) : PRESET_ICONS[0];
 
   $("#subject-modal-title").textContent = subj ? "科目を編集" : "科目を追加";
   $("#subject-name-input").value        = subj ? subj.name : "";
@@ -1152,7 +1193,9 @@ function openSubjectModal(subj = null) {
   setTimeout(() => $("#subject-name-input").focus(), 80);
 }
 
-// Handle subject form submission (add or update)
+// Handle subject form submission (add or update).
+// The `icon` field is kept on existing records for backward compatibility,
+// but new subjects no longer store an icon.
 function submitSubjectForm(event) {
   event.preventDefault();
   const name = $("#subject-name-input").value.trim();
@@ -1163,7 +1206,6 @@ function submitSubjectForm(event) {
     if (subj) {
       subj.name  = name;
       subj.color = pickedColor;
-      subj.icon  = pickedIcon;
     }
   } else {
     const maxOrder = subjects.reduce((max, s) => Math.max(max, s.order), -1);
@@ -1171,7 +1213,7 @@ function submitSubjectForm(event) {
       id:    generateId(),
       name,
       color: pickedColor,
-      icon:  pickedIcon,
+      icon:  "",
       order: maxOrder + 1,
     });
   }
@@ -1463,11 +1505,12 @@ function deleteScore(id) {
 
 // Open the note edit modal
 function openNoteModal(note) {
-  editingNoteId           = note.id;
-  $("#ne-question").value  = note.question;
-  $("#ne-answer").value    = note.correctAnswer;
-  $("#ne-memo").value      = note.memo ?? "";
-  $("#ne-tags").value      = (note.tags ?? []).join(", ");
+  editingNoteId             = note.id;
+  $("#ne-question").value    = note.question;
+  $("#ne-answer").value      = note.correctAnswer;
+  $("#ne-memo").value        = note.memo ?? "";
+  $("#ne-category").value    = note.category ?? "";
+  $("#ne-tags").value        = (note.tags ?? []).join(", ");
   openModal("#note-modal");
   setTimeout(() => $("#ne-question").focus(), 80);
 }
@@ -1480,6 +1523,7 @@ function submitNoteEdit(event) {
     note.question      = $("#ne-question").value.trim();
     note.correctAnswer = $("#ne-answer").value.trim();
     note.memo          = $("#ne-memo").value.trim();
+    note.category      = $("#ne-category")?.value ?? "";
     note.tags          = normalizeTags($("#ne-tags").value);
     note.updatedAt     = new Date().toISOString();
   }
@@ -1821,6 +1865,12 @@ function bindEvents() {
     })
   );
 
+  // Category filter dropdown: "all", category name, or "" for 未分類
+  $("#note-category-filter")?.addEventListener("change", (e) => {
+    noteCategoryFilter = e.target.value;
+    renderMistakeNotes();
+  });
+
   $("#mistake-note-list").addEventListener("click", (e) => {
     const reviewBtn = e.target.closest("[data-note-review]");
     const editBtn   = e.target.closest("[data-note-edit]");
@@ -1915,13 +1965,6 @@ function bindEvents() {
   $("#modal-overlay").addEventListener("click", () => closeModal("#subject-modal"));
   $("#subject-form").addEventListener("submit", submitSubjectForm);
 
-  $("#icon-picker").addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-icon]");
-    if (!btn) return;
-    pickedIcon = btn.dataset.icon;
-    renderPickers();
-  });
-
   $("#color-picker").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-color]");
     if (!btn) return;
@@ -1969,7 +2012,7 @@ function bindEvents() {
 // Dynamically populate all subject <select> elements from the subjects array
 function populateSubjectSelects() {
   const html = sortedSubjects()
-    .map((s) => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.icon)} ${escapeHtml(s.name)}</option>`)
+    .map((s) => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`)
     .join("");
   ["study-subject", "test-subject", "score-subject"].forEach((id) => {
     const el = $(`#${id}`);

@@ -24,9 +24,6 @@
 
     <!-- Offline banner - shown by JS when navigator.onLine is false -->
     <div id="offline-banner" class="offline-banner" aria-live="assertive" hidden>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M[...]
-      </svg>
       オフライン中 - 保存済みデータのみ利用できます
     </div>
 
@@ -76,32 +73,14 @@
 
           <div class="stats">
             <article class="stat-card glass-card">
-              <div class="stat-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M9 11l3 3L22 4" />
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-              </div>
               <span id="total-count">0</span>
               <small>回答数</small>
             </article>
             <article class="stat-card glass-card">
-              <div class="stat-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M3 3v18h18" />
-                  <path d="M7 15l4-4 3 3 6-7" />
-                </svg>
-              </div>
               <span id="correct-rate">0%</span>
               <small>正答率</small>
             </article>
             <article class="stat-card glass-card">
-              <div class="stat-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 19.5V5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-1.5Z" />
-                  <path d="M8 7h6M8 11h6" />
-                </svg>
-              </div>
               <span id="done-count">0</span>
               <small>完了問題</small>
             </article>
@@ -364,11 +343,23 @@
                 <textarea id="note-memo" rows="3" placeholder="なぜ間違えたか、次に見るポイント"></textarea>
               </label>
               <label>
-                <span>分類タグ</span>
-                <input id="note-tags" type="text" placeholder="例: 文法, 計算ミス" />
+                <span>カテゴリ</span>
+                <select id="note-category">
+                  <option value="">未分類</option>
+                  <option value="数学">数学</option>
+                  <option value="英語">英語</option>
+                  <option value="物理">物理</option>
+                  <option value="化学">化学</option>
+                  <option value="情報">情報</option>
+                  <option value="その他">その他</option>
+                </select>
               </label>
               <label>
-                <span>問題画像</span>
+                <span>分類タグ（任意）</span>
+                <input id="note-tags" type="text" placeholder="例: 計算ミス, 暗記不足" />
+              </label>
+              <label>
+                <span>問題画像（任意）</span>
                 <input id="note-image" type="file" accept="image/*" />
               </label>
               <button class="primary-button" type="submit">
@@ -380,10 +371,25 @@
             </form>
           </article>
 
-          <div class="note-toolbar">
-            <button class="inline-button active" data-note-filter="all" type="button">すべて</button>
-            <button class="inline-button" data-note-filter="open" type="button">未復習</button>
-            <button class="inline-button" data-note-filter="reviewed" type="button">復習済み</button>
+          <div class="note-filters">
+            <div class="note-toolbar">
+              <button class="inline-button active" data-note-filter="all" type="button">すべて</button>
+              <button class="inline-button" data-note-filter="open" type="button">未復習</button>
+              <button class="inline-button" data-note-filter="reviewed" type="button">復習済み</button>
+            </div>
+            <label class="note-category-filter">
+              <span>カテゴリ</span>
+              <select id="note-category-filter">
+                <option value="all">すべて</option>
+                <option value="数学">数学</option>
+                <option value="英語">英語</option>
+                <option value="物理">物理</option>
+                <option value="化学">化学</option>
+                <option value="情報">情報</option>
+                <option value="その他">その他</option>
+                <option value="">未分類</option>
+              </select>
+            </label>
           </div>
 
           <div id="mistake-note-list" class="mistake-note-list"></div>
@@ -560,13 +566,9 @@
           </div>
           <form id="subject-form">
             <div class="modal-field">
-              <label class="modal-label">アイコン</label>
-              <div id="icon-picker" class="icon-picker"></div>
-            </div>
-            <div class="modal-field">
               <label class="modal-label" for="subject-name-input">科目名</label>
               <input id="subject-name-input" class="modal-input" type="text"
-                     placeholder="例: 物理" required maxlength="20" autocomplete="off" />
+                     placeholder="例: 電子回路" required maxlength="20" autocomplete="off" />
             </div>
             <div class="modal-field">
               <label class="modal-label">カラー</label>
@@ -762,8 +764,20 @@
               <textarea id="ne-memo" class="modal-input" rows="3"></textarea>
             </div>
             <div class="modal-field">
+              <label class="modal-label" for="ne-category">カテゴリ</label>
+              <select id="ne-category" class="modal-input">
+                <option value="">未分類</option>
+                <option value="数学">数学</option>
+                <option value="英語">英語</option>
+                <option value="物理">物理</option>
+                <option value="化学">化学</option>
+                <option value="情報">情報</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+            <div class="modal-field">
               <label class="modal-label" for="ne-tags">タグ（カンマ区切り）</label>
-              <input id="ne-tags" class="modal-input" type="text" placeholder="例: 文法, 計算ミス" />
+              <input id="ne-tags" class="modal-input" type="text" placeholder="例: 計算ミス, 暗記不足" />
             </div>
             <div class="modal-footer-actions">
               <button id="note-delete-btn" class="danger-button" type="button">削除</button>
