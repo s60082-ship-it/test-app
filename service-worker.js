@@ -3,7 +3,7 @@
 // Increment CACHE_VERSION to force cache refresh
 // ==============================================
 
-const CACHE_VERSION = "v15";
+const CACHE_VERSION = "v16";
 const CACHE_NAME    = `study-pwa-${CACHE_VERSION}`;
 
 // Files to pre-cache for offline support

@@ -2073,30 +2073,6 @@ textarea.modal-input {
 }
 
 /* ----------------------------------------------
-   Offline banner
----------------------------------------------- */
-.offline-banner {
-  position: fixed;
-  top: calc(12px + env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 80;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.86);
-  color: white;
-  font-size: 0.82rem;
-  font-weight: 700;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.3);
-  animation: slide-in 320ms var(--ease) both;
-}
-
-/* Offline banner no longer uses an icon - text only for a cleaner look */
-
-/* ----------------------------------------------
    Animations
 ---------------------------------------------- */
 @keyframes slide-in {

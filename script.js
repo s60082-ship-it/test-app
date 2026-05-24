@@ -2139,14 +2139,6 @@ function populateSubjectSelects() {
   });
 }
 
-// Monitor online/offline status and show/hide the banner
-function initOfflineBanner() {
-  const banner = $("#offline-banner");
-  window.addEventListener("online",  () => { banner.hidden = true;  });
-  window.addEventListener("offline", () => { banner.hidden = false; });
-  if (!navigator.onLine) banner.hidden = false;
-}
-
 // Register the service worker (silently skip unsupported environments)
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
@@ -2186,7 +2178,6 @@ function initApp() {
   renderSubjects();
   startTimer();
 
-  initOfflineBanner();
   registerServiceWorker();
 
   // Fade out and remove the loading screen
