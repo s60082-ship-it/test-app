@@ -699,9 +699,11 @@ function addTest(event) {
   save(KEYS.tests, tests);
   event.currentTarget.reset();
   renderTests();
-  // Note categories follow test subjects - refresh dropdowns now
+  // Both note and term categories follow test subjects - refresh dropdowns
   populateNoteCategoryOptions();
+  populateTermCategoryOptions();
   renderMistakeNotes();
+  renderTerms();
 }
 
 // ----------------------------------------------
@@ -947,32 +949,17 @@ function toggleNoteReviewed(noteId) {
 // Render: Vocabulary
 // ----------------------------------------------
 
-// Return a deduplicated sorted list of all term categories
-function termCategories() {
-  return [...new Set(terms.map((t) => t.category).filter(Boolean))].sort();
-}
-
-// Return terms filtered by search keyword, category, and favorite flag
+// Return terms filtered by search keyword, category, and favorite flag.
+// Empty term.category is treated as "" so the filter can match "未分類".
 function filteredTerms() {
   const kw = termSearch.toLowerCase();
   return terms.filter((t) => {
     const matchKw  = [t.name, t.meaning, t.category].join(" ").toLowerCase().includes(kw);
-    const matchCat = termCatFilter === "all" || t.category === termCatFilter;
+    const matchCat = termCatFilter === "all"
+                      || (t.category || "") === termCatFilter;
     const matchFav = !favoriteOnly || t.favorite;
     return matchKw && matchCat && matchFav;
   });
-}
-
-// Refresh the category filter dropdown options
-function renderTermCategoryOptions() {
-  const current = termCatFilter;
-  const options = [`<option value="all">すべて</option>`].concat(
-    termCategories().map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`)
-  );
-  const sel = $("#term-category-filter");
-  sel.innerHTML = options.join("");
-  sel.value     = termCategories().includes(current) ? current : "all";
-  termCatFilter = sel.value;
 }
 
 // Generate HTML for a term card with favorite and edit buttons
@@ -1020,7 +1007,7 @@ function renderTermFlashcard() {
 
 // Render the full vocabulary screen
 function renderTerms() {
-  renderTermCategoryOptions();
+  populateTermCategoryOptions();
   const items = filteredTerms();
   $("#term-list").innerHTML = items.length
     ? items.map(termCardHtml).join("")
@@ -1396,10 +1383,13 @@ function deleteQuestion(id) {
 
 // Open the term edit modal
 function openTermModal(term) {
-  editingTermId          = term.id;
+  editingTermId           = term.id;
+  // Refresh category options so this term's category remains selectable
+  // even if the originating test has been removed.
+  populateTermCategoryOptions(term.category ?? "");
   $("#te-name").value     = term.name;
   $("#te-meaning").value  = term.meaning;
-  $("#te-category").value = term.category;
+  $("#te-category").value = term.category ?? "";
   openModal("#term-modal");
   setTimeout(() => $("#te-name").focus(), 80);
 }
@@ -1411,7 +1401,7 @@ function submitTermEdit(event) {
   if (term) {
     term.name     = $("#te-name").value.trim();
     term.meaning  = $("#te-meaning").value.trim();
-    term.category = $("#te-category").value.trim();
+    term.category = ($("#te-category").value || "").trim();
   }
   save(KEYS.terms, terms);
   closeModal("#term-modal");
@@ -1456,7 +1446,9 @@ function submitTestEdit(event) {
   closeModal("#test-modal");
   renderTests();
   populateNoteCategoryOptions();
+  populateTermCategoryOptions();
   renderMistakeNotes();
+  renderTerms();
 }
 
 // Delete a test
@@ -1468,7 +1460,9 @@ function deleteTest(id) {
   closeModal("#test-modal");
   renderTests();
   populateNoteCategoryOptions();
+  populateTermCategoryOptions();
   renderMistakeNotes();
+  renderTerms();
 }
 
 // ----------------------------------------------
@@ -1664,6 +1658,7 @@ function importData(file) {
       currentIndex = 0;
       populateSubjectSelects();
       populateNoteCategoryOptions();
+      populateTermCategoryOptions();
       renderProgress();
       renderHome();
       renderQuestionList();
@@ -2078,6 +2073,58 @@ function populateNoteCategoryOptions(preserveExtra = "") {
   }
 }
 
+// Populate the three term category <select> elements from the tests data.
+// Mirrors populateNoteCategoryOptions() so 用語まとめ and ノート share the
+// same source of categories (= テスト予定で入力された科目).
+//
+// - #term-category         (add form):  test subjects, or "その他" fallback when none
+// - #te-category           (edit modal): same as add form (preserves existing value)
+// - #term-category-filter  (filter):    "すべて" + subjects + "未分類"
+//
+// `preserveExtra` is used by the edit modal so an existing term's category
+// stays selectable even if the originating test was removed.
+function populateTermCategoryOptions(preserveExtra = "") {
+  const subjects = testSubjectsForNoteCategory();
+  const extras = preserveExtra && !subjects.includes(preserveExtra)
+    ? [preserveExtra]
+    : [];
+  const allSubjects = [...subjects, ...extras];
+
+  // Input dropdowns: registered test subjects, or "その他" when none exist
+  const inputSubjects = allSubjects.length > 0 ? allSubjects : ["その他"];
+  const inputOptions = inputSubjects
+    .map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
+    .join("");
+
+  // Filter dropdown: "すべて" + subjects + "未分類"
+  const filterOptions =
+    `<option value="all">すべて</option>` +
+    allSubjects
+      .map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`)
+      .join("") +
+    `<option value="">未分類</option>`;
+
+  ["term-category", "te-category"].forEach((id) => {
+    const el = $(`#${id}`);
+    if (!el) return;
+    const prev = el.value;
+    el.innerHTML = inputOptions;
+    if ([...el.options].some((o) => o.value === prev)) el.value = prev;
+  });
+
+  const filterEl = $("#term-category-filter");
+  if (filterEl) {
+    const prev = filterEl.value || "all";
+    filterEl.innerHTML = filterOptions;
+    if ([...filterEl.options].some((o) => o.value === prev)) {
+      filterEl.value = prev;
+    } else {
+      filterEl.value = "all";
+      termCatFilter  = "all";
+    }
+  }
+}
+
 // Dynamically populate all subject <select> elements from the subjects array
 function populateSubjectSelects() {
   const html = sortedSubjects()
@@ -2121,6 +2168,7 @@ function initApp() {
 
   populateSubjectSelects();
   populateNoteCategoryOptions();
+  populateTermCategoryOptions();
   bindEvents();
   initImportDropzone();
 
